@@ -1,32 +1,71 @@
-from typing import Optional
+import datetime
+from enum import Enum
+from typing import Optional, Annotated
 
-from sqlalchemy import String
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import String, ForeignKey, text
+from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 
 
+class DeliveStatus(Enum):
+    confirmed = "confirmed"
+    collect = "collect"
+    handed = "handed"
+    delive = "delive"
+
+
 class Base(DeclarativeBase):
-    pass
+    __abstract__ = True
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+
+created_at = Annotated[datetime.datetime, mapped_column(server_default=text("TIMEZONE('utc', now())"))]
+str_30 = Annotated[str, mapped_column(String(30))]
+
+
+class Customer(Base):
+    __tablename__ = 'customers'
+
+    # id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str_30]
+    address: Mapped[str_30]
+    phone_number: Mapped[str_30]
+    order: Mapped[list["Order"]] = relationship(back_populates="customer")
+
+
+class Order(Base):
+    __tablename__ = 'orders'
+
+    # id: Mapped[int] = mapped_column(primary_key=True)
+    customer_id = mapped_column(ForeignKey("customers.id", ondelete="CASCADE"))
+    delivery_boy_id = mapped_column(ForeignKey("delivery_boy.id", ondelete="CASCADE"))
+    items: Mapped[str_30]
+    delivery_status: Mapped[DeliveStatus]
+    created_at: Mapped[created_at]
+
+    customer: Mapped["Customer"] = relationship(back_populates="order")
+    delivery_boy: Mapped["DeliveryBoy"] = relationship(back_populates="order")
 
 
 class DeliveryBoy(Base):
     __tablename__ = "delivery_boy"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(30))
+    # id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str_30]
     fullname: Mapped[Optional[str]]
     age: Mapped[int]
+
+    order: Mapped[list["Order"]] = relationship(back_populates="delivery_boy")
 
     def __repr__(self) -> str:
         return f"User(id={self.id}, name={self.name}, fullname={self.fullname}"
 
-
-
-#todo
-    # addresses: Mapped[List["Address"]] = relationship(
-    #     back_populates="user", cascade="all, delete-orphan"
-    # )
+# todo
+# addresses: Mapped[List["Address"]] = relationship(
+#     back_populates="user", cascade="all, delete-orphan"
+# )
 
 # class Address(Base):
 #     __tablename__ = "address"

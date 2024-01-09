@@ -6,6 +6,7 @@ from sqlalchemy import String, ForeignKey, text
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
+from src.models import Base
 
 
 class DeliveStatus(Enum):
@@ -15,10 +16,7 @@ class DeliveStatus(Enum):
     delive = "delive"
 
 
-class Base(DeclarativeBase):
-    __abstract__ = True
 
-    id: Mapped[int] = mapped_column(primary_key=True)
 
 
 created_at = Annotated[datetime.datetime, mapped_column(server_default=text("TIMEZONE('utc', now())"))]

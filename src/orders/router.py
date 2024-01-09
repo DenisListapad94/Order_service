@@ -1,22 +1,24 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status
+from sqlalchemy import select, Result
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from database import get_async_session
-from .models import DeliveryBoy
+from .models import DeliveryBoy, Order
 from .schemas import (
     DeliveryBoyUpdateSchema,
     DeliveryBoySchema,
     DeliveryBoyCreateSchema,
-    DeliveryBoyUpdatePartialSchema
+    DeliveryBoyUpdatePartialSchema,
+    OrderSchema
 )
 from .service import (
     create_delivery_boy,
     get_delivery_boys,
-    get_delivery_boy,
     update_delivery_boy,
-    update_partial_delivery_boy,
     delete_delivery_boy
 )
+from .utils import get_delivery_boy_by_id
 
 router = APIRouter(
     prefix="/orders",
@@ -42,32 +44,17 @@ async def get_boys(
 
 @router.get("/{boy_id}/", response_model=DeliveryBoySchema)
 async def get_product(
-        boy_id: int,
-        session: AsyncSession = Depends(get_async_session),
-
+        delivery_boy=Depends(get_delivery_boy_by_id)
 ) -> DeliveryBoy:
-    delivery_boy = await get_delivery_boy(delivery_boy_id=boy_id, session=session)
-    if not delivery_boy:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Delivery boy {boy_id} not found!",
-        )
     return delivery_boy
 
 
 @router.put("/{boy_id}/", response_model=DeliveryBoyUpdateSchema)
 async def update_boy(
-        boy_id: int,
         boy: DeliveryBoyUpdateSchema,
         session: AsyncSession = Depends(get_async_session),
+        delivery_boy=Depends(get_delivery_boy_by_id)
 ) -> DeliveryBoy:
-    delivery_boy = await get_delivery_boy(session=session, delivery_boy_id=boy_id)
-    if not delivery_boy:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Delivery boy {boy_id} not found!",
-        )
-
     return await update_delivery_boy(
         session=session,
         delivery_boy=delivery_boy,
@@ -77,18 +64,11 @@ async def update_boy(
 
 @router.patch("/{boy_id}/", response_model=DeliveryBoyUpdatePartialSchema)
 async def update_partial_boy(
-        boy_id: int,
         boy: DeliveryBoyUpdatePartialSchema,
         session: AsyncSession = Depends(get_async_session),
+        delivery_boy=Depends(get_delivery_boy_by_id)
 ) -> DeliveryBoy:
-    delivery_boy = await get_delivery_boy(session=session, delivery_boy_id=boy_id)
-    if not delivery_boy:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Delivery boy {boy_id} not found!",
-        )
-
-    return await update_partial_delivery_boy(
+    return await update_delivery_boy(
         session=session,
         delivery_boy=delivery_boy,
         delivery_object=boy,
@@ -98,16 +78,53 @@ async def update_partial_boy(
 
 @router.delete("/{boy_id}/", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_boy(
-        boy_id: int,
         session: AsyncSession = Depends(get_async_session),
+        delivery_boy=Depends(get_delivery_boy_by_id)
 ) -> None:
-    delivery_boy = await get_delivery_boy(session=session, delivery_boy_id=boy_id)
-    if not delivery_boy:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Delivery boy {boy_id} not found!",
-        )
     await delete_delivery_boy(
         session=session,
         delivery_boy=delivery_boy
     )
+
+
+@router.post("/order", response_model=OrderSchema)
+async def create_order(
+        order_schema: OrderSchema,
+        session: AsyncSession = Depends(get_async_session)
+) -> Order:
+    order = Order(**order_schema.model_dump())
+    session.add(order)
+    await session.commit()
+
+    return order
+
+
+@router.get("/orders", response_model=list[OrderSchema])
+async def get_orders(
+        session: AsyncSession = Depends(get_async_session),
+) -> list[Order]:
+    stmt = select(Order).order_by(Order.id)
+    result: Result = await session.execute(stmt)
+    orders = result.scalars().all()
+    return list(orders)
+
+
+# @router.get("/delivery_boy_orders")
+# async def get_delivery_boy_orders(
+#         session: AsyncSession = Depends(get_async_session),
+# ):
+    # query = (
+    #     select(DeliveryBoy)
+    #     .options(joinedload(DeliveryBoy.order))
+    # )
+    # query = (
+    #     select(DeliveryBoy)
+    #     .options(selectinload(DeliveryBoy.order))
+    #     .filter(DeliveryBoy.age == 20)
+    # )
+    #
+    # result: Result = await session.execute(query)
+    #
+    # delivery_boys = result.scalars().all()
+    # for order in delivery_boys[0].order:
+    #     print(order.items)

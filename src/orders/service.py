@@ -38,25 +38,25 @@ async def get_delivery_boy(session: AsyncSession, delivery_boy_id: int) -> Deliv
 async def update_delivery_boy(
         session: AsyncSession,
         delivery_boy: DeliveryBoy,
-        delivery_object: DeliveryBoyUpdateSchema,
-) -> DeliveryBoy:
-    for name, value in delivery_object.model_dump().items():
-        setattr(delivery_boy, name, value)
-    await session.commit()
-    return delivery_boy
-
-
-async def update_partial_delivery_boy(
-        session: AsyncSession,
-        delivery_boy: DeliveryBoy,
-        delivery_object: DeliveryBoyUpdatePartialSchema,
-        partial: bool,
+        delivery_object: DeliveryBoyUpdateSchema | DeliveryBoyUpdatePartialSchema,
+        partial: bool = False,
 ) -> DeliveryBoy:
     for name, value in delivery_object.model_dump(exclude_unset=partial).items():
         setattr(delivery_boy, name, value)
     await session.commit()
     return delivery_boy
 
+#
+# async def update_partial_delivery_boy(
+#         session: AsyncSession,
+#         delivery_boy: DeliveryBoy,
+#         delivery_object: DeliveryBoyUpdatePartialSchema,
+#         partial: bool,
+# ) -> DeliveryBoy:
+#     for name, value in delivery_object.model_dump().items():
+#         setattr(delivery_boy, name, value)
+#     await session.commit()
+#     return delivery_boy
 
 
 async def delete_delivery_boy(
